@@ -6,7 +6,7 @@ pipeline {
         ECR_REGISTRY = '503884896971.dkr.ecr.us-east-1.amazonaws.com'
         ECR_REPO     = 'my-application'
         IMAGE        = "${ECR_REGISTRY}/${ECR_REPO}:${BUILD_NUMBER}"
-        DEPLOY_HOST  = 'ubuntu@172.31.13.116'
+        DEPLOY_HOST  = 'ubuntu@172.31.30.30'
         CONTAINER    = 'my-application'
         APP_PORT     = '8080'
     }
