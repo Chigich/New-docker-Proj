@@ -11,6 +11,12 @@ pipeline {
         APP_PORT     = '8080'
     }
 
+    tools {
+        // Name must match exactly what you set in:
+        // Manage Jenkins → Global Tool Configuration → SonarQube Scanner
+        'hudson.plugins.sonar.SonarRunnerInstallation' 'SonarScanner'
+    }
+
     stages {
 
         stage('Checkout') {
@@ -19,16 +25,10 @@ pipeline {
             }
         }
 
-        // FIX 2: SonarQube analysis and Quality Gate split into two stages
         stage('SonarQube Analysis') {
-    steps {
-        withSonarQubeEnv('SonarQube') {
-            withEnv(["PATH+SONAR=${tool 'SonarScanner'}/bin"]) {
-                sh "sonar-scanner -Dsonar.projectKey=${ECR_REPO} -Dsonar.sources=src"
-            }
-        }
-    }
-}
+            steps {
+                withSonarQubeEnv('SonarQube') {
+                    sh "${tool('SonarScanner')}/bin/sonar-scanner -Dsonar.projectKey=${ECR_REPO} -Dsonar.sources=."
                 }
             }
         }
@@ -61,7 +61,6 @@ pipeline {
         stage('Deploy to EC2') {
             steps {
                 sshagent(credentials: ['deploy-server-ssh']) {
-                    // FIX 3: use double quotes so Jenkins expands ${VARIABLE} before SSH sends the command
                     sh """
                         ssh -o StrictHostKeyChecking=no ${DEPLOY_HOST} \
                           "aws ecr get-login-password --region ${AWS_REGION} | \
@@ -82,5 +81,4 @@ pipeline {
         failure { echo "Build #${BUILD_NUMBER} failed" }
         always  { cleanWs() }
     }
-}   
-
+}
