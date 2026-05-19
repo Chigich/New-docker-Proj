@@ -60,23 +60,20 @@ pipeline {
         }
 
         stage('Deploy to EC2') {
-            steps {
-                sshagent(credentials: ['ecr-creds']) {
-                    sh """
-                        ssh -o StrictHostKeyChecking=no ${DEPLOY_HOST} \
-                          "aws ecr get-login-password --region ${AWS_REGION} | \
-                             docker login --username AWS --password-stdin ${ECR_REGISTRY} && \
-                           docker pull ${IMAGE} && \
-                           docker stop ${CONTAINER} 2>/dev/null || true && \
-                           docker rm   ${CONTAINER} 2>/dev/null || true && \
-                           docker run -d --name ${CONTAINER} --restart unless-stopped \
-                             -p ${APP_PORT}:${APP_PORT} ${IMAGE}"
-                    """
-                }
-            }
+    steps {
+        sshagent(credentials: ['ecr-creds']) {
+            sh """
+                ssh -o StrictHostKeyChecking=no ${DEPLOY_HOST} '
+                    /usr/local/bin/aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REGISTRY} &&
+                    docker pull ${IMAGE} &&
+                    docker stop ${CONTAINER} 2>/dev/null || true &&
+                    docker rm ${CONTAINER} 2>/dev/null || true &&
+                    docker run -d --name ${CONTAINER} --restart unless-stopped -p ${APP_PORT}:${APP_PORT} ${IMAGE}
+                '
+            """
         }
     }
-
+}
     post {
         success { echo "Build #${BUILD_NUMBER} deployed successfully" }
         failure { echo "Build #${BUILD_NUMBER} failed" }
