@@ -21,9 +21,14 @@ pipeline {
 
         // FIX 2: SonarQube analysis and Quality Gate split into two stages
         stage('SonarQube Analysis') {
-            steps {
-                withSonarQubeEnv('SonarQube') {
-                    sh "sonar-scanner -Dsonar.projectKey=${ECR_REPO} -Dsonar.sources=src"
+    steps {
+        withSonarQubeEnv('SonarQube') {
+            withEnv(["PATH+SONAR=${tool 'SonarScanner'}/bin"]) {
+                sh "sonar-scanner -Dsonar.projectKey=${ECR_REPO} -Dsonar.sources=src"
+            }
+        }
+    }
+}
                 }
             }
         }
