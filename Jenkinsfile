@@ -2,15 +2,15 @@ pipeline {
     agent any
 
     environment {
-        AWS_REGION     = 'us-east-1'
-        ECR_REGISTRY   = '503884896971.dkr.ecr.us-east-1.amazonaws.com'
-        ECR_REPO       = 'my-application'
-        IMAGE          = "${ECR_REGISTRY}/${ECR_REPO}:${BUILD_NUMBER}"
-        DEPLOY_HOST    = 'ubuntu@172.31.13.116'
-        CONTAINER      = 'my-application'
-        APP_PORT       = '8080'
+        AWS_REGION   = 'us-east-1'
+        ECR_REGISTRY = '503884896971.dkr.ecr.us-east-1.amazonaws.com'
+        ECR_REPO     = 'my-application'
+        IMAGE        = "${ECR_REGISTRY}/${ECR_REPO}:${BUILD_NUMBER}"
+        DEPLOY_HOST  = 'ubuntu@172.31.13.116'
+        CONTAINER    = 'my-application'
+        APP_PORT     = '8080'
     }
-    
+
     stages {
 
         stage('Checkout') {
@@ -19,11 +19,17 @@ pipeline {
             }
         }
 
+        // FIX 2: SonarQube analysis and Quality Gate split into two stages
         stage('SonarQube Analysis') {
             steps {
                 withSonarQubeEnv('SonarQube') {
                     sh "sonar-scanner -Dsonar.projectKey=${ECR_REPO} -Dsonar.sources=src"
                 }
+            }
+        }
+
+        stage('Quality Gate') {
+            steps {
                 timeout(time: 5, unit: 'MINUTES') {
                     waitForQualityGate abortPipeline: true
                 }
@@ -50,16 +56,16 @@ pipeline {
         stage('Deploy to EC2') {
             steps {
                 sshagent(credentials: ['deploy-server-ssh']) {
+                    // FIX 3: use double quotes so Jenkins expands ${VARIABLE} before SSH sends the command
                     sh """
-                        ssh -o StrictHostKeyChecking=no ${DEPLOY_HOST} '
-                          aws ecr get-login-password --region ${AWS_REGION} | \
-                            docker login --username AWS --password-stdin ${ECR_REGISTRY}
-                          docker pull ${IMAGE}
-                          docker stop ${CONTAINER} 2>/dev/null || true
-                          docker rm   ${CONTAINER} 2>/dev/null || true
-                          docker run -d --name ${CONTAINER} --restart unless-stopped \
-                            -p ${APP_PORT}:${APP_PORT} ${IMAGE}
-                        '
+                        ssh -o StrictHostKeyChecking=no ${DEPLOY_HOST} \
+                          "aws ecr get-login-password --region ${AWS_REGION} | \
+                             docker login --username AWS --password-stdin ${ECR_REGISTRY} && \
+                           docker pull ${IMAGE} && \
+                           docker stop ${CONTAINER} 2>/dev/null || true && \
+                           docker rm   ${CONTAINER} 2>/dev/null || true && \
+                           docker run -d --name ${CONTAINER} --restart unless-stopped \
+                             -p ${APP_PORT}:${APP_PORT} ${IMAGE}"
                     """
                 }
             }
@@ -67,8 +73,9 @@ pipeline {
     }
 
     post {
-        success { echo "✅ Build #${BUILD_NUMBER} deployed successfully" }
-        failure { echo "❌ Build #${BUILD_NUMBER} failed" }
+        success { echo "Build #${BUILD_NUMBER} deployed successfully" }
+        failure { echo "Build #${BUILD_NUMBER} failed" }
         always  { cleanWs() }
     }
+}   
 
