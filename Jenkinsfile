@@ -21,7 +21,7 @@ pipeline {
         stage('Checkout') {
             steps {
                 git branch: 'main',
-                    url: https://github.com/Chigich/New-docker-Proj.git,
+                    url: 'https://github.com/Chigich/New-docker-Proj.git',
                     credentialsId: 'git-credentials'
             }
         }
