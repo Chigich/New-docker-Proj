@@ -17,11 +17,12 @@ pipeline {
         'hudson.plugins.sonar.SonarRunnerInstallation' 'SonarScanner'
     }
 
-    stages {
-
+   stages {
         stage('Checkout') {
             steps {
-                checkout scm
+                git branch: 'main',
+                    url: https://github.com/Chigich/New-docker-Proj.git,
+                    credentialsId: 'git-credentials'
             }
         }
 
