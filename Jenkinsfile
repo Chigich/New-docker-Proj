@@ -1,6 +1,5 @@
 pipeline {
     agent any
-
     environment {
         AWS_REGION   = 'us-east-1'
         ECR_REGISTRY = '503884896971.dkr.ecr.us-east-1.amazonaws.com'
@@ -10,14 +9,10 @@ pipeline {
         CONTAINER    = 'my-application'
         APP_PORT     = '8080'
     }
-
     tools {
-        // Name must match exactly what you set in:
-        // Manage Jenkins → Global Tool Configuration → SonarQube Scanner
         'hudson.plugins.sonar.SonarRunnerInstallation' 'SonarScanner'
     }
-
-   stages {
+    stages {
         stage('Checkout') {
             steps {
                 git branch: 'main',
@@ -25,7 +20,6 @@ pipeline {
                     credentialsId: 'git-credentials'
             }
         }
-
         stage('SonarQube Analysis') {
             steps {
                 withSonarQubeEnv('SonarQube') {
@@ -33,7 +27,6 @@ pipeline {
                 }
             }
         }
-
         stage('Quality Gate') {
             steps {
                 timeout(time: 5, unit: 'MINUTES') {
@@ -41,13 +34,11 @@ pipeline {
                 }
             }
         }
-
         stage('Docker Build') {
             steps {
                 sh "docker build -t ${IMAGE} ."
             }
         }
-
         stage('Push to ECR') {
             steps {
                 sh """
@@ -58,25 +49,25 @@ pipeline {
                 """
             }
         }
-
-       stage('Deploy to EC2') {
-    steps {
-        sshagent(credentials: ['ecr-creds']) {
-            sh """
-                ssh -o StrictHostKeyChecking=no ${DEPLOY_HOST} '
-                    /usr/local/bin/aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REGISTRY} &&
-                    docker pull ${IMAGE} &&
-                    docker stop ${CONTAINER} 2>/dev/null || true &&
-                    docker rm ${CONTAINER} 2>/dev/null || true &&
-                    docker run -d --name ${CONTAINER} --restart unless-stopped -p ${APP_PORT}:${APP_PORT} ${IMAGE}
-                '
-            """
-        }
-    }
-}
+        stage('Deploy to EC2') {
+            steps {
+                sshagent(credentials: ['ecr-creds']) {
+                    sh """
+                        ssh -o StrictHostKeyChecking=no ${DEPLOY_HOST} '
+                            /usr/local/bin/aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REGISTRY} &&
+                            docker pull ${IMAGE} &&
+                            docker stop ${CONTAINER} 2>/dev/null || true &&
+                            docker rm ${CONTAINER} 2>/dev/null || true &&
+                            docker run -d --name ${CONTAINER} --restart unless-stopped -p ${APP_PORT}:${APP_PORT} ${IMAGE}
+                        '
+                    """
+                }
+            }
+        }   // ← closes stage('Deploy to EC2')
+    }       // ← closes stages  (was MISSING)
     post {
         success { echo "Build #${BUILD_NUMBER} deployed successfully" }
         failure { echo "Build #${BUILD_NUMBER} failed" }
         always  { cleanWs() }
     }
-}
+}           
